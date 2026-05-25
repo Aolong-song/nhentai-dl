@@ -41,13 +41,13 @@ pip install -r requirements.txt
 ```bash
 # Linux / macOS / Git Bash / WSL
 export NHENTAI_API_KEY="nhk_这里粘贴你的key"
-export HTTP_PROXY="socks5://127.0.0.1:10808"   # 如果需要代理
+export HTTP_PROXY="socks5://你的代理地址"   # 如果需要代理
 ```
 
 ```powershell
 # Windows PowerShell
 $env:NHENTAI_API_KEY="nhk_这里粘贴你的key"
-$env:HTTP_PROXY="socks5://127.0.0.1:10808"
+$env:HTTP_PROXY="socks5://你的代理地址"
 ```
 
 ```cmd
