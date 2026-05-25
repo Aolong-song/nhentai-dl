@@ -1,0 +1,34 @@
+# 下载内容目录（包含本子图片和PDF）
+downloads/
+download/
+
+# API 返回数据（测试用）
+test_*.png
+test_*.json
+search.json
+test_lang.json
+test_lang2.json
+test_api.py
+
+# PyInstaller 构建产物
+build/
+dist/
+NhentaiDownloader*.exe
+*.spec
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+
+# 环境变量（包含 API Key）
+.env
+.env.local
+venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/

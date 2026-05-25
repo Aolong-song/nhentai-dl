@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nhentai Downloader — v2.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #0f0e0d;
+  --bg-card: #1a1816;
+  --bg-elevated: #242220;
+  --text-primary: #e8e0d5;
+  --text-secondary: #8c7b6b;
+  --text-muted: #5a4e42;
+  --accent: #d4603a;
+  --accent-glow: rgba(212,96,58,0.25);
+  --accent2: #c9a96e;
+  --accent2-glow: rgba(201,169,110,0.2);
+  --border: #2e2a26;
+  --border-light: #3d3832;
+  --success: #4ade80;
+  --error: #f87171;
+  --warning: #fbbf24;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Noto Sans SC', sans-serif; background: var(--bg-deep); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background: radial-gradient(ellipse 80% 60% at 20% 0%, rgba(212,96,58,0.04) 0%, transparent 60%),
+              radial-gradient(ellipse 60% 40% at 80% 100%, rgba(201,169,110,0.03) 0%, transparent 50%);
+}
+
+/* ─── Header ─── */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,14,13,0.85); backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header-left { display: flex; align-items: baseline; gap: 16px; }
+.header-title { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.header-subtitle { font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+.header-right { display: flex; align-items: center; gap: 8px; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); }
+.status-dot.error { background: var(--error); box-shadow: 0 0 6px var(--error); }
+.status-dot.warning { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+
+/* ─── Search Section ─── */
+.search-section { padding: 28px 32px 20px; }
+.search-container { display: flex; align-items: center; gap: 12px; }
+.search-input-wrap { flex: 1; position: relative; }
+.search-input {
+  width: 100%; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 6px; padding: 12px 16px 12px 44px;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  color: var(--text-primary); outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 16px; pointer-events: none; }
+.search-btn {
+  background: var(--accent); color: #fff; border: none; border-radius: 6px;
+  padding: 12px 24px; font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: all 0.2s; letter-spacing: 0.02em; white-space: nowrap;
+}
+.search-btn:hover { background: #e06d42; box-shadow: 0 4px 20px var(--accent-glow); transform: translateY(-1px); }
+.search-btn:active { transform: translateY(0); }
+.search-btn.secondary { background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border); }
+.search-btn.secondary:hover { background: var(--bg-card); border-color: var(--border-light); color: var(--text-primary); }
+
+/* ─── Filter Bar ─── */
+.filter-bar { display: flex; align-items: center; gap: 20px; padding: 0 32px 16px; flex-wrap: wrap; }
+.filter-group { display: flex; align-items: center; gap: 8px; }
+.filter-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.filter-btn {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px;
+  padding: 5px 12px; font-size: 12px; color: var(--text-secondary);
+  cursor: pointer; transition: all 0.15s; font-family: 'Noto Sans SC', sans-serif;
+}
+.filter-btn:hover { border-color: var(--border-light); color: var(--text-primary); }
+.filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.filter-select {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px;
+  padding: 5px 10px; font-size: 12px; color: var(--text-primary);
+  font-family: 'Noto Sans SC', sans-serif; outline: none; cursor: pointer;
+}
+.filter-select option { background: var(--bg-card); }
+
+/* ─── Progress Section ─── */
+.progress-section { padding: 0 32px 12px; display: none; }
+.progress-section.active { display: block; }
+.progress-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px 20px;
+}
+.progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.progress-title { font-size: 13px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+.progress-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); }
+.progress-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 12px; }
+.progress-bar-wrap { height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+.progress-bar-fill {
+  height: 100%; border-radius: 3px; transition: width 0.4s ease;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+}
+.progress-bar-fill.done { background: linear-gradient(90deg, var(--success), #86efac); }
+.progress-bar-fill.error { background: linear-gradient(90deg, var(--error), #fca5a5); }
+.progress-message { font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; }
+.progress-message.success { color: var(--success); }
+.progress-message.error { color: var(--error); }
+.progress-actions { margin-top: 12px; display: flex; gap: 8px; }
+
+/* ─── Main Content ─── */
+.main-content { display: grid; grid-template-columns: 1fr 320px 260px; gap: 16px; padding: 0 32px 32px; height: calc(100vh - 220px); }
+.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+.card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.card-title { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+.card-body { flex: 1; overflow-y: auto; padding: 8px 0; }
+.card-body::-webkit-scrollbar { width: 4px; }
+.card-body::-webkit-scrollbar-track { background: transparent; }
+.card-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ─── Results List ─── */
+.result-item { display: flex; align-items: center; gap: 12px; padding: 10px 18px; cursor: pointer; transition: background 0.15s; }
+.result-item:hover { background: var(--bg-elevated); }
+.result-item.selected { background: var(--bg-elevated); border-left: 2px solid var(--accent); }
+.result-thumb-placeholder { width: 40px; height: 56px; border-radius: 3px; background: var(--bg-elevated); flex-shrink: 0; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--text-muted); }
+.result-info { flex: 1; min-width: 0; }
+.result-id { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent); margin-bottom: 2px; }
+.result-title { font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; margin-bottom: 3px; }
+.result-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 8px; }
+
+/* ─── Preview Panel ─── */
+.preview-cover-wrap { padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.preview-cover { width: 140px; height: 200px; border-radius: 4px; object-fit: cover; background: var(--bg-elevated); border: 1px solid var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+.preview-cover-placeholder { width: 140px; height: 200px; border-radius: 4px; background: var(--bg-elevated); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-muted); font-size: 36px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+.preview-cover-placeholder span { font-size: 11px; letter-spacing: 0.05em; }
+.preview-actions { display: flex; gap: 8px; width: 100%; }
+.action-btn { flex: 1; padding: 8px 12px; border-radius: 5px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; font-family: 'Noto Sans SC', sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.action-btn.primary { background: var(--accent); color: #fff; }
+.action-btn.primary:hover:not(:disabled) { background: #e06d42; box-shadow: 0 2px 12px var(--accent-glow); }
+.action-btn.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.action-btn.secondary { background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border); }
+.action-btn.secondary:hover { border-color: var(--border-light); color: var(--text-primary); }
+.action-btn.secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+.preview-info { flex: 1; overflow-y: auto; padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.8; color: var(--text-secondary); }
+.preview-info .info-title { color: var(--text-primary); font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.preview-info .info-divider { border-top: 1px solid var(--border); margin: 8px 0; }
+.preview-info .tag { display: inline-block; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px; font-size: 10px; color: var(--text-muted); margin: 1px; }
+
+/* ─── History ─── */
+.history-item { display: flex; align-items: center; gap: 10px; padding: 8px 18px; cursor: pointer; transition: background 0.15s; }
+.history-item:hover { background: var(--bg-elevated); }
+.history-icon { width: 28px; height: 28px; border-radius: 4px; background: var(--accent-glow); border: 1px solid rgba(212,96,58,0.3); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.history-info { flex: 1; min-width: 0; }
+.history-title { font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-date { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+
+/* ─── Footer ─── */
+.footer { position: fixed; bottom: 0; left: 0; right: 0; height: 40px; background: rgba(15,14,13,0.92); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 100; }
+.footer-left { display: flex; align-items: center; gap: 12px; font-size: 11px; color: var(--text-muted); }
+.footer-right { display: flex; align-items: center; gap: 8px; }
+.download-dir { display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; color: var(--text-secondary); font-size: 11px; }
+.dir-path { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
+.dir-btn {
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 3px;
+  padding: 3px 10px; font-size: 10px; color: var(--text-secondary); cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif; transition: all 0.15s;
+}
+.dir-btn:hover { border-color: var(--border-light); color: var(--text-primary); }
+
+/* ─── Log Panel ─── */
+.log-panel { position: fixed; bottom: 40px; left: 0; right: 0; height: 0; background: var(--bg-card); border-top: 1px solid var(--border); overflow: hidden; transition: height 0.3s ease; z-index: 99; }
+.log-panel.open { height: 180px; }
+.log-content { height: 100%; overflow-y: auto; padding: 12px 32px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.8; }
+.log-line { display: flex; gap: 12px; }
+.log-time { color: var(--text-muted); min-width: 60px; }
+.log-msg { color: var(--text-secondary); }
+.log-msg.success { color: var(--success); }
+.log-msg.error { color: var(--error); }
+.log-msg.info { color: var(--accent2); }
+.log-toggle { position: fixed; bottom: 40px; right: 32px; width: 32px; height: 24px; background: var(--bg-elevated); border: 1px solid var(--border); border-bottom: none; border-radius: 4px 4px 0 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--text-muted); z-index: 101; transition: all 0.2s; }
+.log-toggle:hover { color: var(--text-secondary); }
+
+/* ─── Loading ─── */
+.loading-overlay { position: absolute; inset: 0; background: rgba(15,14,13,0.7); display: flex; align-items: center; justify-content: center; z-index: 50; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+.loading-overlay.active { opacity: 1; pointer-events: all; }
+.spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Empty State ─── */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 12px; color: var(--text-muted); padding: 40px; text-align: center; }
+.empty-state .empty-icon { font-size: 40px; opacity: 0.4; }
+.empty-state p { font-size: 13px; line-height: 1.6; }
+.empty-state small { font-size: 11px; opacity: 0.6; }
+
+/* ─── Animations ─── */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.animate-in { animation: fadeUp 0.4s ease forwards; }
+
+@media (max-width: 1100px) { .main-content { grid-template-columns: 1fr 280px; } .history-panel { display: none; } }
+@media (max-width: 800px) { .main-content { grid-template-columns: 1fr; } .preview-panel { display: none; } }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <span class="header-title">Nhentai Downloader</span>
+    <span class="header-subtitle">本子下载工具 v2.1</span>
+  </div>
+  <div class="header-right">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText" style="font-size:11px;color:var(--text-muted)">就绪</span>
+  </div>
+</header>
+
+<section class="search-section">
+  <div class="search-container">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="searchInput" type="text" placeholder="输入 ID / 链接 / 标题搜索，例如: 177013">
+    </div>
+    <button class="search-btn" id="searchBtn">搜索</button>
+    <button class="search-btn secondary" id="randomBtn">🎲 随机</button>
+  </div>
+</section>
+
+<div class="filter-bar">
+  <div class="filter-group">
+    <span class="filter-label">榜单</span>
+    <button class="filter-btn active" data-sort="today">今日</button>
+    <button class="filter-btn" data-sort="week">本周</button>
+    <button class="filter-btn" data-sort="month">本月</button>
+    <button class="filter-btn" id="popularBtn">查看榜单</button>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">语言</span>
+    <select class="filter-select" id="langSelect">
+      <option value="chinese">中文</option>
+      <option value="english">英文</option>
+      <option value="japanese">日文</option>
+      <option value="all">全部</option>
+    </select>
+  </div>
+</div>
+
+<!-- 下载进度区域 -->
+<div class="progress-section" id="progressSection">
+  <div class="progress-card">
+    <div class="progress-header">
+      <div class="progress-title">
+        <span id="progressTitleIcon">⏳</span>
+        <span id="progressTitle">正在下载...</span>
+        <span class="progress-id" id="progressId"></span>
+      </div>
+      <div class="progress-meta">
+        <span id="progressCount">0/0</span>
+        <span id="progressPercent">0%</span>
+      </div>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-message" id="progressMessage">准备中...</div>
+  </div>
+</div>
+
+<div class="main-content">
+  <!-- 搜索结果 -->
+  <div class="card" id="resultsCard" style="position:relative;">
+    <div class="card-header">
+      <span class="card-title">搜索结果</span>
+      <span id="resultsCount" style="font-size:11px;color:var(--text-muted)">0 个结果</span>
+    </div>
+    <div class="card-body" id="resultsBody">
+      <div class="empty-state">
+        <div class="empty-icon">📚</div>
+        <p>搜索或浏览榜单<br><small>输入 ID / 链接 / 标题，或查看榜单</small></p>
+      </div>
+    </div>
+    <div class="loading-overlay" id="resultsLoader"><div class="spinner"></div></div>
+  </div>
+
+  <!-- 预览面板 -->
+  <div style="display:flex;flex-direction:column;gap:12px;">
+    <div class="card" id="previewCard" style="flex:1;display:flex;flex-direction:column;">
+      <div class="card-header"><span class="card-title">预览</span></div>
+      <div class="card-body" style="display:flex;flex-direction:column;">
+        <div class="preview-cover-wrap" style="flex-shrink:0;">
+          <div class="preview-cover-placeholder" id="previewCover">📖<span>选择本子查看封面</span></div>
+          <div class="preview-actions">
+            <button class="action-btn primary" id="downloadBtn" disabled>⬇ 下载</button>
+            <button class="action-btn secondary" id="retryBtn" disabled>↻ 重试</button>
+          </div>
+        </div>
+        <div class="preview-info" id="previewInfo">
+          <div style="color:var(--text-muted);font-family:'Noto Sans SC',sans-serif;font-size:13px;font-weight:400;text-align:center;padding-top:20px;">选择一个本子开始</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 历史记录 -->
+  <div class="card history-panel" id="historyCard">
+    <div class="card-header">
+      <span class="card-title">下载历史</span>
+      <span id="historyCount" style="font-size:11px;color:var(--text-muted)">0 条</span>
+    </div>
+    <div class="card-body" id="historyBody">
+      <div class="empty-state"><div class="empty-icon">📜</div><p><small>暂无下载记录</small></p></div>
+    </div>
+  </div>
+</div>
+
+<div class="log-panel" id="logPanel"><div class="log-content" id="logContent"></div></div>
+<button class="log-toggle" id="logToggle">▲</button>
+
+<footer class="footer">
+  <div class="footer-left">
+    <span id="footerStatus">就绪</span>
+  </div>
+  <div class="download-dir">
+    <span>📁</span>
+    <span class="dir-path" id="dirPath">加载中...</span>
+    <button class="dir-btn" id="selectFolderBtn">选择文件夹</button>
+    <button class="dir-btn" id="saveDirBtn">保存</button>
+  </div>
+</footer>
+
+<script>
+const API = 'http://localhost:28473';
+let selectedGallery = null;
+let currentDownloadId = null;
+let progressSource = null;
+
+// ─── Elements ───
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
+const randomBtn = document.getElementById('randomBtn');
+const popularBtn = document.getElementById('popularBtn');
+const langSelect = document.getElementById('langSelect');
+const resultsBody = document.getElementById('resultsBody');
+const resultsCount = document.getElementById('resultsCount');
+const resultsLoader = document.getElementById('resultsLoader');
+const previewCover = document.getElementById('previewCover');
+const previewInfo = document.getElementById('previewInfo');
+const downloadBtn = document.getElementById('downloadBtn');
+const historyBody = document.getElementById('historyBody');
+const historyCount = document.getElementById('historyCount');
+const progressSection = document.getElementById('progressSection');
+const progressFill = document.getElementById('progressFill');
+const progressMessage = document.getElementById('progressMessage');
+const progressCount = document.getElementById('progressCount');
+const progressPercent = document.getElementById('progressPercent');
+const progressTitle = document.getElementById('progressTitle');
+const progressTitleIcon = document.getElementById('progressTitleIcon');
+const progressId = document.getElementById('progressId');
+const logPanel = document.getElementById('logPanel');
+const logContent = document.getElementById('logContent');
+const logToggle = document.getElementById('logToggle');
+const dirPath = document.getElementById('dirPath');
+const selectFolderBtn = document.getElementById('selectFolderBtn');
+const saveDirBtn = document.getElementById('saveDirBtn');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const footerStatus = document.getElementById('footerStatus');
+
+// ─── Utils ───
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function log(msg, type='') {
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">[${ts}]</span><span class="log-msg ${type}">${esc(msg)}</span>`;
+  logContent.appendChild(line);
+  logContent.scrollTop = logContent.scrollHeight;
+}
+function setStatus(text, type='ready') {
+  statusText.textContent = text;
+  footerStatus.textContent = text;
+  statusDot.className = 'status-dot';
+  if (type === 'error') statusDot.classList.add('error');
+  else if (type === 'warning') statusDot.classList.add('warning');
+  else if (type === 'downloading') statusDot.classList.add('warning');
+}
+function setLoading(el, active) { el.classList.toggle('active', active); }
+function parseGid(text) {
+  text = text.trim();
+  let m = text.match(/nhentai\.net\/g\/(\d+)/); if (m) return parseInt(m[1]);
+  m = text.match(/\/g\/(\d+)/); if (m) return parseInt(m[1]);
+  if (/^\d+$/.test(text)) return parseInt(text);
+  return null;
+}
+function getTitle(g) { return g.title?.english || g.title?.japanese || g.english_title || g.japanese_title || 'Unknown'; }
+
+// ─── Render Results ───
+function renderResults(galleries) {
+  resultsCount.textContent = `${galleries.length} 个结果`;
+  if (!galleries.length) {
+    resultsBody.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>没有找到结果</p></div>`;
+    return;
+  }
+  resultsBody.innerHTML = galleries.map((g, i) => `
+    <div class="result-item animate-in" data-index="${i}" style="animation-delay:${i*30}ms">
+      <div class="result-thumb-placeholder">📖</div>
+      <div class="result-info">
+        <div class="result-id">#${g.id}</div>
+        <div class="result-title">${esc(getTitle(g))}</div>
+        <div class="result-meta"><span>${g.num_pages || 0}P</span></div>
+      </div>
+    </div>
+  `).join('');
+
+  resultsBody.querySelectorAll('.result-item').forEach((item, idx) => {
+    const g = galleries[idx];
+    const ph = item.querySelector('.result-thumb-placeholder');
+    const url = `https://t.nhentai.net/galleries/${g.media_id}/thumb.jpg`;
+    const img = new Image();
+    img.onload = () => { ph.outerHTML = `<img class="result-thumb-placeholder" src="${url}" style="object-fit:cover;">`; };
+    img.onerror = () => {};
+    img.src = url;
+    item.addEventListener('click', () => selectGallery(g, item));
+  });
+}
+
+// ─── Select Gallery ───
+async function selectGallery(g, itemEl) {
+  document.querySelectorAll('.result-item').forEach(el => el.classList.remove('selected'));
+  itemEl.classList.add('selected');
+  selectedGallery = g;
+
+  try {
+    const full = await fetch(`${API}/gallery/${g.id}`).then(r => r.json());
+    selectedGallery = full;
+    renderPreview(full);
+  } catch(e) {
+    renderPreview(g);
+  }
+  downloadBtn.disabled = false;
+}
+
+function renderPreview(g) {
+  const title = getTitle(g);
+  const mediaId = g.media_id || '';
+  const pages = g.num_pages || 0;
+  const tags = (g.tags || []).slice(0, 20);
+  const tagsHtml = tags.map(t => `<span class="tag">${esc(t.name || '')}</span>`).join('') || '<span style="color:var(--text-muted)">无标签</span>';
+
+  if (mediaId) {
+    previewCover.innerHTML = `<img class="preview-cover" src="https://i.nhentai.net/galleries/${mediaId}/cover.jpg" alt="cover" onerror="this.outerHTML='<div class=\\'preview-cover-placeholder\\'>📖<span>封面加载失败</span></div>'">`;
+  } else {
+    previewCover.innerHTML = `<div class="preview-cover-placeholder">📖<span>无封面</span></div>`;
+  }
+
+  previewInfo.innerHTML = `
+    <div class="info-title">${esc(title)}</div>
+    <div style="color:var(--text-muted);font-size:11px;margin:4px 0 8px;">#${g.id} · ${pages} 页</div>
+    <div class="info-divider"></div>
+    <div style="color:var(--text-muted);font-size:11px;margin-bottom:6px;">标签</div>
+    <div style="line-height:1.8;">${tagsHtml}</div>
+  `;
+}
+
+// ─── Search ───
+async function doSearch() {
+  const raw = searchInput.value.trim();
+  if (!raw) return;
+  setLoading(resultsLoader, true);
+  resultsBody.innerHTML = `<div class="empty-state"><div class="spinner" style="margin:0 auto;"></div></div>`;
+
+  try {
+    const gid = parseGid(raw);
+    let galleries = [];
+    if (gid) {
+      log(`获取本子 #${gid}...`);
+      const g = await fetch(`${API}/gallery/${gid}`).then(r => r.json());
+      galleries = [g];
+    } else {
+      log(`搜索: ${raw}`);
+      const r = await fetch(`${API}/search`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({query: raw}) }).then(r => r.json());
+      galleries = r.data || [];
+    }
+    renderResults(galleries);
+    log(`找到 ${galleries.length} 个结果`, 'success');
+    setStatus(`找到 ${galleries.length} 个结果`);
+  } catch(e) {
+    log(`搜索失败: ${e}`, 'error');
+    resultsBody.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div><p>搜索失败<br><small>${esc(String(e))}</small></p></div>`;
+    setStatus('搜索失败', 'error');
+  }
+  setLoading(resultsLoader, false);
+}
+
+// ─── Random ───
+async function doRandom() {
+  setLoading(resultsLoader, true);
+  resultsBody.innerHTML = `<div class="empty-state"><div class="spinner" style="margin:0 auto;"></div></div>`;
+  try {
+    log('随机获取...');
+    const r = await fetch(`${API}/popular`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({sort:'today',language:'all'}) }).then(r => r.json());
+    const data = r.data || [];
+    if (data.length) {
+      const g = data[Math.floor(Math.random() * data.length)];
+      renderResults([g]);
+      log(`随机: #${g.id} - ${getTitle(g).slice(0,30)}`, 'success');
+    }
+  } catch(e) {
+    log(`随机失败: ${e}`, 'error');
+  }
+  setLoading(resultsLoader, false);
+}
+
+// ─── Popular ───
+async function doPopular() {
+  const sort = document.querySelector('.filter-btn.active[data-sort]')?.dataset.sort || 'today';
+  const lang = langSelect.value;
+  setLoading(resultsLoader, true);
+  resultsBody.innerHTML = `<div class="empty-state"><div class="spinner" style="margin:0 auto;"></div></div>`;
+  try {
+    log(`加载榜单: ${sort}（语言: ${lang}）`);
+    const r = await fetch(`${API}/popular`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({sort, language: lang}) }).then(r => r.json());
+    renderResults(r.data || []);
+    log(`榜单加载完成: ${(r.data||[]).length} 个`, 'success');
+  } catch(e) {
+    log(`榜单加载失败: ${e}`, 'error');
+  }
+  setLoading(resultsLoader, false);
+}
+
+// ─── Download with SSE Progress ───
+async function doDownload() {
+  if (!selectedGallery) return;
+  const gid = selectedGallery.id;
+  currentDownloadId = gid;
+  progressSection.classList.add('active');
+  progressFill.style.width = '0%';
+  progressFill.className = 'progress-bar-fill';
+  progressTitle.textContent = '正在下载...';
+  progressTitleIcon.textContent = '⏳';
+  progressId.textContent = `#${gid}`;
+  progressCount.textContent = '0/0';
+  progressPercent.textContent = '0%';
+  progressMessage.textContent = '准备中...';
+  progressMessage.className = 'progress-message';
+
+  downloadBtn.disabled = true;
+  setStatus(`下载中: #${gid}`, 'downloading');
+  log(`开始下载: #${gid} - ${getTitle(selectedGallery)}`);
+
+  try {
+    // 启动下载
+    const r = await fetch(`${API}/download`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({gallery_id: gid})
+    }).then(r => r.json());
+
+    // 建立 SSE 连接获取实时进度
+    if (progressSource) progressSource.close();
+    progressSource = new EventSource(`${API}/download/progress/${gid}`);
+
+    progressSource.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        updateProgress(data);
+      } catch(ex) {}
+    };
+
+    progressSource.onerror = () => {
+      // SSE 断开，查询最终状态
+      setTimeout(async () => {
+        try {
+          const s = await fetch(`${API}/download/status/${gid}`).then(r => r.json());
+          updateProgress(s);
+        } catch(ex) {}
+      }, 1000);
+    };
+
+  } catch(e) {
+    log(`下载启动失败: ${e}`, 'error');
+    progressMessage.textContent = `启动失败: ${e}`;
+    progressMessage.className = 'progress-message error';
+    progressFill.className = 'progress-bar-fill error';
+    downloadBtn.disabled = false;
+    setStatus('下载失败', 'error');
+  }
+}
+
+function updateProgress(data) {
+  const { status, progress, current, total, message, result, error } = data;
+
+  progressFill.style.width = `${progress}%`;
+  progressCount.textContent = `${current}/${total}`;
+  progressPercent.textContent = `${progress}%`;
+  progressMessage.textContent = message;
+
+  if (status === 'done') {
+    progressFill.className = 'progress-bar-fill done';
+    progressTitleIcon.textContent = '✅';
+    progressTitle.textContent = '下载完成';
+    progressMessage.className = 'progress-message success';
+    if (result) log(`PDF 已保存: ${result.pdf_path || result.title}`, 'success');
+    else log('下载完成', 'success');
+    setStatus('下载完成', 'ready');
+    // 立即关闭 SSE 并清理 UI
+    if (progressSource) { progressSource.close(); progressSource = null; }
+    setTimeout(() => { progressSection.classList.remove('active'); downloadBtn.disabled = false; }, 500);
+    refreshHistory();
+  } else if (status === 'error') {
+    progressFill.className = 'progress-bar-fill error';
+    progressTitleIcon.textContent = '❌';
+    progressTitle.textContent = '下载失败';
+    progressMessage.className = 'progress-message error';
+    log(`下载失败: ${error || message}`, 'error');
+    setStatus('下载失败', 'error');
+    if (progressSource) { progressSource.close(); progressSource = null; }
+  } else if (status === 'downloading') {
+    progressFill.className = 'progress-bar-fill';
+    progressTitleIcon.textContent = '⏳';
+    progressTitle.textContent = '正在下载';
+  }
+}
+
+function closeProgressAfterDelay() {
+  setTimeout(() => {
+    progressSection.classList.remove('active');
+    downloadBtn.disabled = false;
+    if (progressSource) { progressSource.close(); progressSource = null; }
+  }, 3000);
+}
+
+// ─── Folder Selection ───
+async function selectFolder() {
+  try {
+    const r = await fetch(`${API}/select_folder`, { method: 'POST' });
+    const data = await r.json();
+    if (data.path) {
+      dirPath.textContent = data.path;
+      log(`下载目录已选择: ${data.path}`, 'info');
+    }
+  } catch(e) {
+    // 如果 API 不可用，提示用户
+    log('无法打开文件夹选择器，请确保服务已启动', 'error');
+    alert('请先运行 py run_web.py 启动服务，然后再选择文件夹');
+  }
+}
+
+async function saveDownloadDir() {
+  const dir = dirPath.textContent;
+  try {
+    await fetch(`${API}/config`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({download_dir: dir})
+    });
+    log(`下载目录已保存: ${dir}`, 'success');
+  } catch(e) {
+    log(`保存失败: ${e}`, 'error');
+  }
+}
+
+// ─── History ───
+async function refreshHistory() {
+  try {
+    const r = await fetch(`${API}/history`).then(r => r.json());
+    const history = r.data || [];
+    historyCount.textContent = `${history.length} 条`;
+    if (!history.length) {
+      historyBody.innerHTML = `<div class="empty-state"><div class="empty-icon">📜</div><p><small>暂无下载记录</small></p></div>`;
+      return;
+    }
+    historyBody.innerHTML = history.slice(0, 50).map((item, i) => `
+      <div class="history-item animate-in" data-gid="${item.gallery_id}" style="animation-delay:${i*20}ms">
+        <div class="history-icon">📖</div>
+        <div class="history-info">
+          <div class="history-title">${esc((item.title||'Unknown').slice(0,30))}</div>
+          <div class="history-date">#${item.gallery_id} · ${(item.download_date||'').slice(0,10)}</div>
+        </div>
+      </div>
+    `).join('');
+
+    historyBody.querySelectorAll('.history-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const gid = item.dataset.gid;
+        searchInput.value = gid;
+        doSearch();
+      });
+    });
+  } catch(e) {}
+}
+
+// ─── Load Config ───
+async function loadConfig() {
+  try {
+    const cfg = await fetch(`${API}/config`).then(r => r.json());
+    dirPath.textContent = cfg.download_dir || '未设置';
+    log(`已加载配置，下载目录: ${cfg.download_dir}`, 'info');
+  } catch(e) {
+    dirPath.textContent = '服务未启动';
+    log('无法连接服务，请运行 py run_web.py', 'error');
+  }
+}
+
+// ─── Event Binding ───
+searchBtn.addEventListener('click', doSearch);
+randomBtn.addEventListener('click', doRandom);
+popularBtn.addEventListener('click', doPopular);
+downloadBtn.addEventListener('click', doDownload);
+selectFolderBtn.addEventListener('click', selectFolder);
+saveDirBtn.addEventListener('click', saveDownloadDir);
+
+searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+logToggle.addEventListener('click', () => {
+  logPanel.classList.toggle('open');
+  logToggle.textContent = logPanel.classList.contains('open') ? '▼' : '▲';
+});
+
+document.querySelectorAll('[data-sort]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-sort]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+// ─── Init ───
+loadConfig();
+refreshHistory();
+log('界面加载完成，等待后端服务...', 'info');
+</script>
+</body>
+</html>
