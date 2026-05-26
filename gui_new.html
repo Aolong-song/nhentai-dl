@@ -248,25 +248,9 @@ body::before {
   </div>
 </div>
 
-<!-- 下载进度区域 -->
+<!-- 下载进度区域（多个并行） -->
 <div class="progress-section" id="progressSection">
-  <div class="progress-card">
-    <div class="progress-header">
-      <div class="progress-title">
-        <span id="progressTitleIcon">⏳</span>
-        <span id="progressTitle">正在下载...</span>
-        <span class="progress-id" id="progressId"></span>
-      </div>
-      <div class="progress-meta">
-        <span id="progressCount">0/0</span>
-        <span id="progressPercent">0%</span>
-      </div>
-    </div>
-    <div class="progress-bar-wrap">
-      <div class="progress-bar-fill" id="progressFill"></div>
-    </div>
-    <div class="progress-message" id="progressMessage">准备中...</div>
-  </div>
+  <!-- 动态生成多个 progress-card -->
 </div>
 
 <div class="main-content">
@@ -334,8 +318,8 @@ body::before {
 <script>
 const API = 'http://localhost:28473';
 let selectedGallery = null;
-let currentDownloadId = null;
-let progressSource = null;
+let progressCards = {};  // {galleryId: {element, source, title, fill, count, percent, message, titleIcon, progressId}}
+let esConnections = {};  // {galleryId: EventSource}
 
 // ─── Elements ───
 const searchInput = document.getElementById('searchInput');
@@ -352,13 +336,6 @@ const downloadBtn = document.getElementById('downloadBtn');
 const historyBody = document.getElementById('historyBody');
 const historyCount = document.getElementById('historyCount');
 const progressSection = document.getElementById('progressSection');
-const progressFill = document.getElementById('progressFill');
-const progressMessage = document.getElementById('progressMessage');
-const progressCount = document.getElementById('progressCount');
-const progressPercent = document.getElementById('progressPercent');
-const progressTitle = document.getElementById('progressTitle');
-const progressTitleIcon = document.getElementById('progressTitleIcon');
-const progressId = document.getElementById('progressId');
 const logPanel = document.getElementById('logPanel');
 const logContent = document.getElementById('logContent');
 const logToggle = document.getElementById('logToggle');
@@ -532,47 +509,64 @@ async function doPopular() {
   setLoading(resultsLoader, false);
 }
 
-// ─── Download with SSE Progress ───
+// ─── Download with SSE Progress (Multiple Parallel) ───
 async function doDownload() {
   if (!selectedGallery) return;
   const gid = selectedGallery.id;
-  currentDownloadId = gid;
-  progressSection.classList.add('active');
-  progressFill.style.width = '0%';
-  progressFill.className = 'progress-bar-fill';
-  progressTitle.textContent = '正在下载...';
-  progressTitleIcon.textContent = '⏳';
-  progressId.textContent = `#${gid}`;
-  progressCount.textContent = '0/0';
-  progressPercent.textContent = '0%';
-  progressMessage.textContent = '准备中...';
-  progressMessage.className = 'progress-message';
+  const title = getTitle(selectedGallery);
+
+  // 复用已有卡片或新建
+  if (!progressCards[gid]) {
+    const card = createProgressCard(gid, title);
+    progressCards[gid] = {
+      element: card,
+      source: null,
+      title: title,
+      fill: card.querySelector('.progress-bar-fill'),
+      count: card.querySelector('#progressCount'),
+      percent: card.querySelector('#progressPercent'),
+      message: card.querySelector('.progress-message'),
+      titleIcon: card.querySelector('.progress-title-icon'),
+      progressId: card.querySelector('.progress-id')
+    };
+  }
+
+  const pc = progressCards[gid];
+  pc.fill.style.width = '0%';
+  pc.fill.className = 'progress-bar-fill';
+  pc.titleIcon.textContent = '⏳';
+  pc.progressId.textContent = `#${gid}`;
+  pc.count.textContent = '0/0';
+  pc.percent.textContent = '0%';
+  pc.message.textContent = '准备中...';
+  pc.message.className = 'progress-message';
+  pc.element.style.display = 'block';
 
   downloadBtn.disabled = true;
   setStatus(`下载中: #${gid}`, 'downloading');
-  log(`开始下载: #${gid} - ${getTitle(selectedGallery)}`);
+  log(`开始下载: #${gid} - ${title.slice(0,30)}`);
 
   try {
-    // 启动下载
     const r = await fetch(`${API}/download`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({gallery_id: gid})
     }).then(r => r.json());
 
-    // 建立 SSE 连接获取实时进度
-    if (progressSource) progressSource.close();
-    progressSource = new EventSource(`${API}/download/progress/${gid}`);
+    // 建立 SSE 连接
+    if (esConnections[gid]) esConnections[gid].close();
+    const source = new EventSource(`${API}/download/progress/${gid}`);
+    esConnections[gid] = source;
+    pc.source = source;
 
-    progressSource.onmessage = (e) => {
+    source.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
         updateProgress(data);
       } catch(ex) {}
     };
 
-    progressSource.onerror = () => {
-      // SSE 断开，查询最终状态
+    source.onerror = () => {
       setTimeout(async () => {
         try {
           const s = await fetch(`${API}/download/status/${gid}`).then(r => r.json());
@@ -583,55 +577,82 @@ async function doDownload() {
 
   } catch(e) {
     log(`下载启动失败: ${e}`, 'error');
-    progressMessage.textContent = `启动失败: ${e}`;
-    progressMessage.className = 'progress-message error';
-    progressFill.className = 'progress-bar-fill error';
+    pc.message.textContent = `启动失败: ${e}`;
+    pc.message.className = 'progress-message error';
+    pc.fill.className = 'progress-bar-fill error';
     downloadBtn.disabled = false;
     setStatus('下载失败', 'error');
   }
+}
+
+function createProgressCard(gid, title) {
+  const section = document.getElementById('progressSection');
+  const card = document.createElement('div');
+  card.className = 'progress-card';
+  card.dataset.gid = gid;
+  card.innerHTML = `
+    <div class="progress-header">
+      <div class="progress-title">
+        <span class="progress-title-icon">⏳</span>
+        <span class="progress-title-text">正在下载...</span>
+        <span class="progress-id">#${gid}</span>
+      </div>
+      <div class="progress-meta">
+        <span class="progress-count">0/0</span>
+        <span class="progress-percent">0%</span>
+      </div>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill"></div>
+    </div>
+    <div class="progress-message">准备中...</div>
+  `;
+  section.appendChild(card);
+  return card;
 }
 
 function updateProgress(data) {
-  const { status, progress, current, total, message, result, error } = data;
+  const { status, progress, current, total, message, result, error, gallery_id } = data;
+  const gid = gallery_id;
+  if (!progressCards[gid]) return;
 
-  progressFill.style.width = `${progress}%`;
-  progressCount.textContent = `${current}/${total}`;
-  progressPercent.textContent = `${progress}%`;
-  progressMessage.textContent = message;
+  const pc = progressCards[gid];
+  pc.fill.style.width = `${progress}%`;
+  pc.count.textContent = `${current}/${total}`;
+  pc.percent.textContent = `${progress}%`;
+  pc.message.textContent = message;
 
   if (status === 'done') {
-    progressFill.className = 'progress-bar-fill done';
-    progressTitleIcon.textContent = '✅';
-    progressTitle.textContent = '下载完成';
-    progressMessage.className = 'progress-message success';
+    pc.fill.className = 'progress-bar-fill done';
+    pc.titleIcon.textContent = '✅';
+    pc.element.querySelector('.progress-title-text').textContent = '下载完成';
+    pc.message.className = 'progress-message success';
     if (result) log(`PDF 已保存: ${result.pdf_path || result.title}`, 'success');
     else log('下载完成', 'success');
     setStatus('下载完成', 'ready');
-    // 立即关闭 SSE 并清理 UI
-    if (progressSource) { progressSource.close(); progressSource = null; }
-    setTimeout(() => { progressSection.classList.remove('active'); downloadBtn.disabled = false; }, 500);
+    if (esConnections[gid]) { esConnections[gid].close(); esConnections[gid] = null; }
+    if (Object.keys(progressCards).length === 1) {
+      setTimeout(() => {
+        pc.element.style.display = 'none';
+        downloadBtn.disabled = false;
+      }, 3000);
+    } else {
+      downloadBtn.disabled = false;
+    }
     refreshHistory();
   } else if (status === 'error') {
-    progressFill.className = 'progress-bar-fill error';
-    progressTitleIcon.textContent = '❌';
-    progressTitle.textContent = '下载失败';
-    progressMessage.className = 'progress-message error';
+    pc.fill.className = 'progress-bar-fill error';
+    pc.titleIcon.textContent = '❌';
+    pc.element.querySelector('.progress-title-text').textContent = '下载失败';
+    pc.message.className = 'progress-message error';
     log(`下载失败: ${error || message}`, 'error');
     setStatus('下载失败', 'error');
-    if (progressSource) { progressSource.close(); progressSource = null; }
+    if (esConnections[gid]) { esConnections[gid].close(); esConnections[gid] = null; }
   } else if (status === 'downloading') {
-    progressFill.className = 'progress-bar-fill';
-    progressTitleIcon.textContent = '⏳';
-    progressTitle.textContent = '正在下载';
+    pc.fill.className = 'progress-bar-fill';
+    pc.titleIcon.textContent = '⏳';
+    pc.element.querySelector('.progress-title-text').textContent = '正在下载';
   }
-}
-
-function closeProgressAfterDelay() {
-  setTimeout(() => {
-    progressSection.classList.remove('active');
-    downloadBtn.disabled = false;
-    if (progressSource) { progressSource.close(); progressSource = null; }
-  }, 3000);
 }
 
 // ─── Folder Selection ───
