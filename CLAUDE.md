@@ -62,9 +62,10 @@ py -m PyInstaller NhentaiDownloader_Web.spec --noconfirm
 
 ## 技术要点
 
+- nhentai.net 公共 API，无需 API Key
 - API 返回结构：`/search` 返回 `result` 数组（不是 `data`）
 - 搜索结果为简化对象（无完整 tags），只有 `tag_ids` 数字数组
 - 完整本子详情通过 `/galleries/{id}` 获取，包含 `pages[]` 和 `tags[]`
 - SSL 证书验证已禁用（`verify=False`），代理环境下避免证书错误
-- PyInstaller 运行时配置写入 `%APPDATA%\NhentaiDownloader\`，确保重启后路径持久化
+- PyInstaller 运行时配置写入 `%APPDATA%\NhentaiDownloader\`
 - 多下载并行：每个下载任务有独立的进度卡片和 SSE 连接

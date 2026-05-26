@@ -1,31 +1,12 @@
-"""Nhentai API 客户端"""
+"""Nhentai API 客户端（公共 API，无需 Key）"""
 import os
 import requests
 from typing import Optional, Dict, List, Any
-from urllib.parse import urlencode
-
-# 从环境变量读取配置（敏感信息不应硬编码）
-API_KEY = os.environ.get('NHENTAI_API_KEY', '')
-PROXY = os.environ.get('HTTP_PROXY', '') or os.environ.get('HTTPS_PROXY', '')
-
-# 验证配置
-if not API_KEY:
-    raise ValueError(
-        "NHENTAI_API_KEY 环境变量未设置。\n"
-        "请访问 https://nhentai.net/settings/ 获取 API Key，"
-        "并通过以下方式配置：\n"
-        "  Linux/Mac: export NHENTAI_API_KEY='nhk_xxx'\n"
-        "  Windows:   set NHENTAI_API_KEY=nhk_xxx\n"
-        "  或复制 .env.example 为 .env 并填入配置"
-    )
 
 BASE_URL = "https://nhentai.net/api/v2"
+PROXY = os.environ.get('HTTP_PROXY', '') or os.environ.get('HTTPS_PROXY', '')
 PROXY_DICT = {"http": PROXY, "https": PROXY} if PROXY else {}
-HEADERS = {
-    "Authorization": f"Key {API_KEY}",
-    "User-Agent": "NhentaiDownloader/1.0",
-    "Accept": "application/json",
-}
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
 
 class NhentaiAPI:

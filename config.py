@@ -25,18 +25,13 @@ def get_default_download_dir() -> str:
 
 
 def load_config() -> Dict:
-    """加载配置（优先从环境变量读取）"""
-    # 从环境变量读取敏感配置
-    api_key = os.environ.get('NHENTAI_API_KEY', '')
-    proxy = os.environ.get('HTTP_PROXY', '')
+    """加载配置"""
+    proxy = os.environ.get('HTTP_PROXY', '') or os.environ.get('HTTPS_PROXY', '')
 
     if CONFIG_FILE.exists():
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 config = json.load(f)
-                # 环境变量优先级高于配置文件
-                if api_key:
-                    config['api_key'] = api_key
                 if proxy:
                     config['proxy'] = proxy
                 return config
@@ -46,7 +41,6 @@ def load_config() -> Dict:
     return {
         "download_dir": get_default_download_dir(),
         "proxy": proxy or "socks5://127.0.0.1:10808",
-        "api_key": api_key or "",
         "language_filter": "chinese",
     }
 

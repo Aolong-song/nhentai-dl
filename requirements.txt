@@ -1,4 +1,4 @@
-streamlit
-aiohttp
-Pillow
+fastapi
+uvicorn
 requests
+Pillow
